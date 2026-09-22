@@ -160,7 +160,9 @@
   .side-empty{color:var(--muted);font-size:12.5px;text-align:center;padding:22px 12px;line-height:1.8}
   .side-empty .ic{font-size:20px;opacity:.35;display:block;margin-bottom:6px}
   .sidefoot{color:var(--muted);font-size:11.5px;text-align:center;line-height:2}
-  .sidefoot a{color:var(--accent);text-decoration:none;cursor:pointer}
+  .sidefoot a{color:var(--accent);text-decoration:none;cursor:pointer;display:inline-block;
+       padding:7px 10px;min-height:30px;border-radius:7px}
+  .sidefoot a:hover{background:var(--soft2);text-decoration:none}
   .sidefoot a:hover{text-decoration:underline}
 
   /* ── 首页 ── */
@@ -178,6 +180,16 @@
   .askbox .box:focus-within{border-color:color-mix(in srgb,var(--accent) 55%,transparent);
         box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 9%,transparent),0 10px 34px -14px var(--accent-glow)}
   .askbox input{flex:1;border:0;background:transparent;outline:none;font-size:15px;padding:11px 0}
+  /* 表单里带「选…」的那行：输入框占满，按钮不缩 */
+  .rowline .pick{flex:none;white-space:nowrap}
+  details.more{margin-top:14px}
+  details.more summary{cursor:pointer;font-size:12.5px;color:var(--muted);padding:8px 2px;
+       border-radius:7px;list-style:none}
+  details.more summary::-webkit-details-marker{display:none}
+  details.more summary::before{content:"▸ ";color:var(--muted2)}
+  details.more[open] summary::before{content:"▾ "}
+  details.more summary:hover{color:var(--fg)}
+  details.more summary .hint{margin-left:6px}
   .askbox input::placeholder{color:var(--muted2)}
   .askbox .send{width:40px;height:40px;flex:none;border:0;border-radius:10px;cursor:pointer;
         background:linear-gradient(180deg,var(--grad-a),var(--grad-b));
@@ -355,8 +367,8 @@
 <header>
   <div class="brand"><span class="mark"><img src="/__llmr/logo-mark.png" alt=""></span><span class="name">LLM<span class="r">-R</span><span class="tag">Light Model Runtime</span></span></div>
   <div class="seg" id="modes">
-    <button data-mode="user">用户</button>
-    <button data-mode="dev">开发者</button>
+    <button data-mode="user">使用</button>
+    <button data-mode="dev">高级</button>
   </div>
   <span class="grow"></span>
   <button class="btn plain" id="btnTheme" title="切换亮色 / 暗色"><span id="themeIco">◐</span></button>
@@ -507,7 +519,7 @@
         + '<p class="greet">你需要什么帮助，朋友？</p>'
         + '<p class="sub">说一句你要做的事，我给你配一个 AGT。</p>'
         + '<div class="ask"><div class="box">'
-        + '<input type="text" id="askInput" placeholder="例如：把资料整理成一份 Word">'
+        + '<input type="text" id="askInput" aria-label="你想做什么" placeholder="例如：把资料整理成一份 Word">'
         + '<button class="send" id="askGo" title="开始">→</button>'
         + '</div>'
         + (chips.length ? '<div class="chips">' + chips.slice(0, 8).map(function (t) {
@@ -741,6 +753,44 @@
     else postToUi('event', { name: 'error', data: { message: (r && r.reason) || '运行未完成', status: r && r.status } })
   }
 
+  // ── 要路径的地方一律能「点着选」──
+  // 傻瓜不知道"C:\\Users\\...\\hw.pdf"该怎么写，也不该知道。
+  // 名字像路径的字段自动配一个「选…」，走宿主开真的系统对话框。
+  var PICK_RULES = [
+    [/repo|folder|dir|workdir|project/i, 'folder'],
+    [/pdf|file|target|skill|source|src|path|doc|image|img/i, 'file'],
+  ]
+  function pickKindFor (name) {
+    for (var i = 0; i < PICK_RULES.length; i++) if (PICK_RULES[i][0].test(name)) return PICK_RULES[i][1]
+    return null
+  }
+  function wirePickers (root) {
+    var btns = root.querySelectorAll('[data-pick]')
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].onclick = function () {
+        var me = this
+        var kind = me.getAttribute('data-pick')
+        var argName = me.getAttribute('data-for')
+        me.disabled = true
+        var old = me.textContent
+        me.textContent = '…'
+        post('/api/pick', { kind: kind, title: '选择' + argName }).then(function (r) {
+          me.disabled = false
+          me.textContent = old
+          if (r && r.path) {
+            var inp = document.querySelector('[data-arg="' + argName + '"]')
+            if (inp) inp.value = r.path
+          }
+        }).catch(function (e) {
+          me.disabled = false
+          me.textContent = old
+          toast(String(e && e.message ? e.message : e))
+        })
+      }
+    }
+  }
+
+
   // ── 选中的 AGT ──
   function paintAgt () {
     var a = S.agt, swf = (S.view && S.view.swf) || {}, inv = swf.invoke || {}
@@ -759,7 +809,11 @@
     if (S.view && S.view.errors && S.view.errors.length) {
       h += '<div class="note e-err" style="margin-top:14px">这张 SWF 有 ' + S.view.errors.length + ' 个校验错误，可能跑不通。</div>'
     }
-    h += '<div class="card" id="runCard" style="margin-top:20px"><div class="h2" style="margin-top:0">做什么</div>'
+    // 前置条件要**提前**说清。点下去才报错，是对傻瓜最不友好的做法。
+    var useHttp = S.settings.backend === 'http'
+    var hasKey = !!(S.settings.model && S.settings.model.hasKey)
+    var blocked = useHttp && !hasKey
+    var h = '<div class="card" id="runCard" style="margin-top:20px"><div class="h2" style="margin-top:0">做什么</div>'
     // 跑起来之后表单要收起来。否则每跑一次，成品都被压在四个输入框下面，
     // 得往下滚才看得见——用户要的是**结果**，不是这张表。
     h += '<div class="foldline">跑的是：<span id="foldSum"></span>'
@@ -768,32 +822,59 @@
     // ⚠ 诉求**永远**要有。以前是「有 args 就不给诉求框」——可真实流程往往两样都要：
     // 用户既要说清要干什么，又要指个文件。那个二选一让「把老师这段话贴进来」没地方贴。
     h += '<label class="f">诉求</label><input type="text" data-arg="__goal" placeholder="用一句话说清，或直接把他发的那段贴进来">'
+    // 字段分两拨：**必填的露出来，选填的折起**。
+    // 审计量出来"典型任务要填 5 个框、约 7 下" —— 傻瓜不该看见 4 个可填可不填的空。
+    function argHtml (d) {
+      var hint = d.type === 'refs' ? '资料标号，如 1,2'
+        : d.type === 'int' ? '数字'
+        : d.type === 'bool' ? 'true / false'
+        : '填写 ' + d.name
+      var pk = pickKindFor(d.name)
+      var lab = '<label class="f" for="arg-' + esc(d.name) + '">' + esc(d.name) + (d.required ? ' *' : '') + '</label>'
+      var inp = '<input id="arg-' + esc(d.name) + '" type="text" data-arg="' + esc(d.name) + '" placeholder="' + esc(hint) + '">'
+      if (!pk) return lab + inp
+      return lab + '<div class="rowline"><input id="arg-' + esc(d.name) + '" type="text" data-arg="' +
+        esc(d.name) + '" placeholder="' + esc(hint) + '"><button type="button" class="btn pick" data-pick="' +
+        pk + '" data-for="' + esc(d.name) + '">选…</button></div>'
+    }
     if (argsDef.length) {
-      argsDef.forEach(function (d) {
-        // 占位符给人看的提示，不是把类型名原样丢出来
-        var hint = d.type === 'refs' ? '资料标号，如 1,2'
-          : d.type === 'int' ? '数字'
-          : d.type === 'bool' ? 'true / false'
-          : '填写 ' + d.name
-        h += '<label class="f">' + esc(d.name) + (d.required ? ' *' : '') + '</label>'
-        h += '<input type="text" data-arg="' + esc(d.name) + '" placeholder="' + esc(hint) + '">'
-      })
+      var reqArgs = argsDef.filter(function (d) { return d.required })
+      // 一个必填都没有时，**别把所有字段都折起来** —— 那样连主输入（那个文件）都看不见了。
+      // 拿第一个当主输入露出来，其余折起。
+      if (!reqArgs.length && argsDef.length) reqArgs = [argsDef[0]]
+      var optArgs = argsDef.filter(function (d) { return reqArgs.indexOf(d) < 0 })
+      reqArgs.forEach(function (d) { h += argHtml(d) })
+      if (optArgs.length) {
+        h += '<details class="more"><summary>还有 ' + optArgs.length + ' 个可选参数' +
+          '<span class="hint">（大多数情况不用填）</span></summary>'
+        optArgs.forEach(function (d) { h += argHtml(d) })
+        h += '</details>'
+      }
     }
     // echo 后端下可以喂样例正文。目的是**不花额度**就能看真实版式的成品长什么样、
     // 暂停与分支对不对。这不是模拟执行——走的是同一个执行器和同一套渲染，
     // 只是把「模型会产出什么」这一步先钉死。换成真后端它就不出现了。
-    if (S.settings.backend === 'echo') {
-      h += '<label class="f" style="margin-top:16px">样例输出（仅 echo 干跑用）</label>'
+    if (S.mode === 'dev' && S.settings.backend === 'echo') {
+      h += '<label class="f" style="margin-top:16px">样例输出（干跑调试）</label>'
       h += '<textarea id="demoOut" rows="2" placeholder=\'{"show_result":"成品正文…"} —— 按 AMZ id 覆盖 echo 的正文\'></textarea>'
     }
     h += '</div>'
-    h += '<div class="rowline" style="margin-top:20px"><button class="btn primary" id="btnRun">开始</button>'
+    h += '<div class="rowline" style="margin-top:20px"><button class="btn primary" id="btnRun"' +
+      (blocked ? ' disabled' : '') + '>开始</button>'
       + '<span class="hint" id="runMsg"></span></div>'
+    if (blocked) {
+      h += '<div class="note" style="margin-top:14px">还没告诉它用哪个模型 —— ' +
+        '点左下角<b>去设置</b>填一个 API Key（约 30 秒）。</div>'
+    } else if (!useHttp) {
+      h += '<div class="hint" style="margin-top:14px">现在是<b>干跑</b>：流程会真的走一遍，但不调用模型、不花钱。' +
+        '想看真实效果，去设置里换成真模型。</div>'
+    }
     h += '</div>'
     h += '<div id="runBox"></div>'
     $('#view').innerHTML = h
     // ⚠ 必须包一层。直接 `= runAgt` 的话，点击事件会当成第一个参数传进去，
     // 于是 startAt 变成一个 PointerEvent —— 执行器报「节点不存在：[object PointerEvent]」。
+    wirePickers($('#runCard'))
     $('#btnRun').onclick = function () { runAgt() }
     $('#btnFold').onclick = function () { $('#runCard').classList.remove('folded'); $('input[data-arg=__goal]').focus() }
     var backDev = $('#btnBackDev')
@@ -1326,10 +1407,10 @@
       + '<div class="card"><div class="h2" style="margin-top:0">默认模式</div>'
       + '<div class="hint" style="margin-bottom:12px">用户模式只显示 AGT；开发者模式显示 SWF、图与能力表面。</div>'
       + '<div class="seg" id="setMode" style="width:max-content"><button data-mode="user"' + (s.mode !== 'dev' ? ' class="on"' : '') + '>用户</button>'
-      + '<button data-mode="dev"' + (s.mode === 'dev' ? ' class="on"' : '') + '>开发者</button></div></div>'
+      + '<button data-mode="dev"' + (s.mode === 'dev' ? ' class="on"' : '') + '>高级</button></div></div>'
 
       + '<div class="card"><div class="h2" style="margin-top:0">SWF 目录</div>'
-      + '<input type="text" id="setDir" value="' + esc(s.dir || '') + '" placeholder="' + esc((S.list && S.list.dir) || '') + '">'
+      + '<input type="text" id="setDir" aria-label="SWF 目录" value="' + esc(s.dir || '') + '" placeholder="' + esc((S.list && S.list.dir) || '') + '">'
       + '<div class="rowline" style="margin-top:16px"><button class="btn primary" id="setSave">保存</button>'
       + '<span class="hint" id="setMsg"></span></div></div>'
       + '</div>'

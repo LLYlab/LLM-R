@@ -18,8 +18,9 @@
   "scripts": {
     "web": "node tools/llmr/server.cjs",
     "validate": "node tools/validator/validate.cjs",
-    "test": "node tools/llmr/examples.selftest.cjs && node tools/llmr/executor.selftest.cjs && node tools/llmr/selftest.cjs && node tools/llmr/exprtest.cjs && node tools/validator/selftest.cjs && node tools/validator/auditcodes.cjs",
+    "test": "node tools/llmr/examples.selftest.cjs && node tools/llmr/uxaudit.cjs --report && node tools/llmr/executor.selftest.cjs && node tools/llmr/selftest.cjs && node tools/llmr/exprtest.cjs && node tools/validator/selftest.cjs && node tools/validator/auditcodes.cjs",
     "fuzz": "node tools/llmr/fuzztest.cjs && node tools/validator/schemfuzz.cjs",
-    "ui": "node tools/llmr/uidemo.cjs"
+    "ui": "node tools/llmr/uidemo.cjs",
+    "ux": "node tools/llmr/uxaudit.cjs --report"
   }
 }
