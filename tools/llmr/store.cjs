@@ -27,6 +27,8 @@ function writeJson (file, value) {
 }
 
 const DEFAULT_SETTINGS = {
+  // 'auto' 跟随系统；'dark' / 'light' 是显式选择
+  theme: 'auto',
   mode: 'user',
   dir: '',
   backend: 'echo', // echo | http

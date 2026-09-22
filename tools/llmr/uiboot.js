@@ -42,6 +42,12 @@
     if (!m || m.__llmr !== 1) return
     if (m.type === 'state') { STATE = m.payload; emit('state', m.payload); return }
     if (m.type === 'event') { emit(m.payload.name, m.payload.data); return }
+    // 宿主切了主题：这边跟着切，不用重载页面（重载会丢掉页面里的状态）
+    if (m.type === 'theme') {
+      document.documentElement.setAttribute('data-theme', m.payload.theme === 'light' ? 'light' : 'dark')
+      emit('theme', m.payload)
+      return
+    }
     if (m.id && WAIT[m.id]) {
       var w = WAIT[m.id]; delete WAIT[m.id]
       if (m.error) w.reject(new Error(m.error)); else w.resolve(m.payload)

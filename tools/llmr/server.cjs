@@ -96,19 +96,33 @@ function safeUnder (base, rel) {
   return full
 }
 
-/** 把引导层与主题令牌注入 SWF 自己的 HTML。注入点：<head> 之后；没有 head 就放最前 */
-const BOOT_TAGS = [
-  '<link rel="stylesheet" href="/__llmr/ui.css">',
-  '<script src="/__llmr/uiboot.js"></script>',
-  '',
-].join('\n')
-function injectBoot (html) {
+/**
+ * 把引导层、主题令牌与**主题**注入 SWF 自己的 HTML。
+ * 注入点：<head> 之后；没有 head 就放最前。
+ *
+ * 主题在**服务端**就定下来（宿主把解析后的值挂在 ?__theme= 上）——
+ * 页面首帧就是对的，不会先闪一下暗色。iframe 是 sandbox 的、读不到 localStorage，
+ * 所以不能指望它自己去查。
+ */
+function bootTags (theme) {
+  const t = theme === 'light' ? 'light' : (theme === 'dark' ? 'dark' : '')
+  return [
+    '<link rel="stylesheet" href="/__llmr/ui.css">',
+    '<script>(function(){var t=' + JSON.stringify(t) + ';' +
+      'if(!t){try{var q=new URLSearchParams(location.search).get("__theme");t=q==="light"?"light":"dark"}catch(e){t="dark"}}' +
+      'document.documentElement.setAttribute("data-theme",t)})()<\/script>',
+    '<script src="/__llmr/uiboot.js"><\/script>',
+    '',
+  ].join('\n')
+}
+function injectBoot (html, theme) {
+  const tags = bootTags(theme)
   const m = /<head[^>]*>/i.exec(html)
   if (m) {
     const at = m.index + m[0].length
-    return html.slice(0, at) + '\n' + BOOT_TAGS + html.slice(at)
+    return html.slice(0, at) + '\n' + tags + html.slice(at)
   }
-  return BOOT_TAGS + html
+  return tags + html
 }
 
 /**
@@ -197,7 +211,7 @@ const server = http.createServer(async (req, res) => {
       const ext = path.extname(full).toLowerCase()
       if (ext === '.html' || ext === '.htm') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' })
-        res.end(injectBoot(fs.readFileSync(full, 'utf8')))
+        res.end(injectBoot(fs.readFileSync(full, 'utf8'), u.searchParams.get('__theme')))
         return
       }
       res.writeHead(200, { 'content-type': MIME[ext] || 'application/octet-stream', 'cache-control': 'no-store' })

@@ -1,13 +1,16 @@
-/* LLM R · SWF 自带界面用的主题令牌与通用件
+/* LLM-R · SWF 自带界面用的主题令牌与通用件
  *
  * 由服务器注入（<link rel="stylesheet" href="/__llmr/ui.css">）。
  * **页面是 SWF 的，能力是宿主的**——页面自己写 HTML/CSS/JS，
  * 但长在这套令牌上，和主界面同一副视觉。
  *
- * 只有令牌和极少数通用件。真正专用的东西（代码视图、diff、叙事流）
- * 留在页面自己手里——那是"这个工作种类"的事，不该由宿主规定。
+ * 双主题：暗色是底色，亮色由 <html data-theme="light"> 切换。
+ * 强调色的各种透明度**不各写一遍**，统一用 color-mix 从 --llmr-accent 派生——
+ * 否则每加一档透明度都要在两个主题里各写一次，迟早漏。
  */
+
 :root {
+  /* ── 暗色（默认）── */
   --llmr-bg: #070a10;
   --llmr-panel: #0c1119;
   --llmr-panel2: #111823;
@@ -23,15 +26,74 @@
   --llmr-accent: #4cc9f0;
   --llmr-accent2: #7b61ff;
   --llmr-accent3: #2ee6c5;
-  --llmr-accent-soft: rgba(76, 201, 240, .12);
-  --llmr-accent-glow: rgba(76, 201, 240, .45);
+  --llmr-accent-fg: #04121a;
   --llmr-danger: #ff5d6c;
   --llmr-warn: #f5b544;
   --llmr-ok: #38e08b;
+
+  --llmr-glow-a: rgba(76, 201, 240, .15);
+  --llmr-glow-b: rgba(123, 97, 255, .13);
+  --llmr-header-bg: rgba(10, 14, 21, .82);
+  --llmr-bar-bg: rgba(10, 14, 21, .7);
+  --llmr-scroll: #1e2836;
+  --llmr-scroll-hover: #2c3a4d;
+  --llmr-hover-line: #243146;
+  --llmr-grad-a: #4cc9f0;
+  --llmr-grad-b: #3aa8d6;
+  --llmr-hero-a: #ffffff;
+  --llmr-hero-b: #96a8bf;
+  --llmr-paper-a: #0f1620;
+  --llmr-paper-b: #0c1119;
+  --llmr-label-bg: #0c1119;
+  --llmr-rise: rgba(255, 255, 255, .02);
+
   --llmr-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
   --llmr-r: 10px;
   --llmr-r-lg: 14px;
   --llmr-r-sm: 7px;
+  --llmr-sh-sm: 0 1px 2px rgba(0, 0, 0, .5);
+  --llmr-sh-md: 0 2px 6px rgba(0, 0, 0, .5), 0 16px 40px -12px rgba(0, 0, 0, .75);
+}
+
+html[data-theme="light"] {
+  --llmr-bg: #f5f7fb;
+  --llmr-panel: #ffffff;
+  --llmr-panel2: #ffffff;
+  --llmr-panel3: #eef2f8;
+  --llmr-fg: #0d1420;
+  --llmr-fg2: #47536a;
+  --llmr-muted: #78849a;
+  --llmr-muted2: #9aa5b6;
+  --llmr-line: #e0e6ef;
+  --llmr-line2: #edf0f6;
+  --llmr-soft: #f3f6fa;
+  --llmr-soft2: #e9eef6;
+  --llmr-accent: #0e7fc4;
+  --llmr-accent2: #6544e8;
+  --llmr-accent3: #0a9e7c;
+  --llmr-accent-fg: #ffffff;
+  --llmr-danger: #d42d40;
+  --llmr-warn: #a9701a;
+  --llmr-ok: #0f8459;
+
+  --llmr-glow-a: rgba(76, 201, 240, .22);
+  --llmr-glow-b: rgba(123, 97, 255, .12);
+  --llmr-header-bg: rgba(255, 255, 255, .84);
+  --llmr-bar-bg: rgba(255, 255, 255, .78);
+  --llmr-scroll: #ccd5e2;
+  --llmr-scroll-hover: #a9b4c4;
+  --llmr-hover-line: #c3cede;
+  --llmr-grad-a: #2b9ddb;
+  --llmr-grad-b: #0e7fc4;
+  --llmr-hero-a: #0b1220;
+  --llmr-hero-b: #5a6b84;
+  --llmr-paper-a: #ffffff;
+  --llmr-paper-b: #fbfcfe;
+  --llmr-label-bg: #ffffff;
+  --llmr-rise: rgba(255, 255, 255, .65);
+
+  --llmr-sh-sm: 0 1px 2px rgba(16, 24, 40, .06);
+  --llmr-sh-md: 0 2px 6px rgba(16, 24, 40, .05), 0 16px 40px -16px rgba(16, 24, 40, .16);
 }
 
 * { box-sizing: border-box }
@@ -42,14 +104,15 @@ body {
   color: var(--llmr-fg);
   font: 14px/1.6 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition: background .18s ease, color .18s ease;
 }
-::selection { background: rgba(76, 201, 240, .28) }
+::selection { background: color-mix(in srgb, var(--llmr-accent) 28%, transparent) }
 ::-webkit-scrollbar { width: 10px; height: 10px }
 ::-webkit-scrollbar-thumb {
-  background: #1e2836; border-radius: 6px;
+  background: var(--llmr-scroll); border-radius: 6px;
   border: 3px solid transparent; background-clip: content-box;
 }
-::-webkit-scrollbar-thumb:hover { background: #2c3a4d; background-clip: content-box }
+::-webkit-scrollbar-thumb:hover { background: var(--llmr-scroll-hover); background-clip: content-box }
 
 a { color: var(--llmr-accent) }
 code, pre, .llmr-mono { font-family: var(--llmr-mono) }
@@ -61,18 +124,19 @@ code, pre, .llmr-mono { font-family: var(--llmr-mono) }
   cursor: pointer; font-size: 13px; font-weight: 500;
   transition: background .16s ease, border-color .16s ease, color .16s ease;
 }
-.llmr-btn:hover { background: var(--llmr-panel3); color: var(--llmr-fg); border-color: #243146 }
+.llmr-btn:hover { background: var(--llmr-panel3); color: var(--llmr-fg); border-color: var(--llmr-hover-line) }
 .llmr-btn.primary {
-  background: linear-gradient(180deg, rgba(76, 201, 240, .95), rgba(58, 168, 214, .95));
-  color: #04121a; border-color: transparent; font-weight: 650;
-  box-shadow: 0 6px 22px -8px var(--llmr-accent-glow);
+  background: linear-gradient(180deg, var(--llmr-grad-a), var(--llmr-grad-b));
+  color: var(--llmr-accent-fg); border-color: transparent; font-weight: 650;
+  box-shadow: 0 6px 22px -8px color-mix(in srgb, var(--llmr-accent) 45%, transparent);
 }
-.llmr-btn.primary:hover { filter: brightness(1.09) }
+.llmr-btn.primary:hover { filter: brightness(1.06) }
 .llmr-btn:disabled { opacity: .4; cursor: default }
 
 .llmr-card {
   background: var(--llmr-panel); border: 1px solid var(--llmr-line);
   border-radius: var(--llmr-r); padding: 20px 22px;
+  box-shadow: var(--llmr-sh-sm);
 }
 .llmr-pill {
   display: inline-block; padding: 2px 10px; border-radius: 6px;
@@ -80,7 +144,11 @@ code, pre, .llmr-mono { font-family: var(--llmr-mono) }
   color: var(--llmr-fg2); font-size: 11.5px; font-family: var(--llmr-mono);
   margin: 0 6px 6px 0;
 }
-.llmr-pill.on { background: var(--llmr-accent-soft); color: var(--llmr-accent); border-color: rgba(76, 201, 240, .24) }
+.llmr-pill.on {
+  background: color-mix(in srgb, var(--llmr-accent) 12%, transparent);
+  color: var(--llmr-accent);
+  border-color: color-mix(in srgb, var(--llmr-accent) 24%, transparent);
+}
 
 .llmr-h2 {
   font-family: var(--llmr-mono); font-size: 10px; font-weight: 600;
@@ -96,7 +164,8 @@ code, pre, .llmr-mono { font-family: var(--llmr-mono) }
   transition: border-color .16s ease, box-shadow .16s ease;
 }
 .llmr-input:focus, input:focus, textarea:focus, select:focus {
-  border-color: rgba(76, 201, 240, .55); box-shadow: 0 0 0 3px rgba(76, 201, 240, .09);
+  border-color: color-mix(in srgb, var(--llmr-accent) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--llmr-accent) 9%, transparent);
 }
 textarea { min-height: 64px; font-family: var(--llmr-mono); font-size: 12.5px; resize: vertical }
 
@@ -107,10 +176,18 @@ textarea { min-height: 64px; font-family: var(--llmr-mono); font-size: 12.5px; r
 
 .llmr-empty { color: var(--llmr-muted); text-align: center; padding: 60px 20px; line-height: 1.9 }
 
-/* 页面骨架：左主右栏，或上下 */
+/* 页面骨架：左主右栏（.llmr-split） */
 .llmr-page { max-width: 960px; margin: 0 auto; padding: 28px 30px 64px }
 .llmr-row { display: flex; gap: 14px; align-items: center }
 .llmr-grow { flex: 1; min-width: 0 }
 .llmr-split { display: flex; gap: 16px; align-items: flex-start }
 .llmr-split > .llmr-main { flex: 1; min-width: 0 }
 .llmr-split > .llmr-side { width: 280px; flex: none }
+
+/* 纸张：正文、成品、章节 —— 两个主题下都该像"纸" */
+.llmr-paper {
+  background: linear-gradient(180deg, var(--llmr-paper-a), var(--llmr-paper-b));
+  border: 1px solid var(--llmr-line); border-radius: var(--llmr-r);
+  padding: 24px 28px; white-space: pre-wrap; word-break: break-word;
+  line-height: 1.8; font-size: 14.5px; box-shadow: var(--llmr-sh-sm);
+}

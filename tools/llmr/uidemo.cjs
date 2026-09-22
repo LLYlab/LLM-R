@@ -16,6 +16,7 @@ const path = require('path')
 
 const SRC = path.resolve(__dirname, 'webui.html')
 const OUT = path.resolve(__dirname, '..', '..', '_shot')
+// LLMR_THEME=light 出亮色图；文件名带后缀，免得覆盖暗色那套
 
 const A = {
   id: 'demo', name: '作业成品',
@@ -109,6 +110,8 @@ function bootstrap (call, opts) {
     lines.push('  foldCard(' + JSON.stringify({ goal: GOAL, pdf: path.join(OUT, 'hw4.pdf') }) + ')')
   }
   if (call) lines.push(call)
+  // 出图用的主题：node uidemo.cjs light → 亮色
+  lines.push('  document.documentElement.setAttribute("data-theme", ' + JSON.stringify(process.env.LLMR_THEME || 'dark') + ')')
   lines.push('  finishGraphAnimation()')
   return lines.join('\n')
 }
@@ -142,7 +145,7 @@ for (const [file, code] of Object.entries(cases)) {
   const out = src
     .replace('/__llmr/logo-mark.png', '../tools/llmr/logo-mark.png')
     .replace('  boot()\n})()', code + '\n})()')
-  const p = path.join(OUT, file)
+  const p = path.join(OUT, (process.env.LLMR_THEME === 'light' ? file.replace(/\.html$/, '.light.html') : file))
   fs.writeFileSync(p, out, 'utf8')
   console.log('写出 ' + p)
 }
