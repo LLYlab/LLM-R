@@ -223,7 +223,7 @@ for (const [name, p] of written) {
     'file:///' + p.replace(/\\/g, '/'),
   ], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 60000 })
   const dom = r.stdout || ''
-  const m = dom.match(/<pre id="__ux">([^<]*)<\/pre>/)
+  const m = dom.match(/<pre id="__ux"[^>]*>([^<]*)<\/pre>/)
   if (!m) { console.log(`\n▌ ${name}\n  ✗ 没拿到报告（页面脚本可能抛了）`); totalErr++; continue }
   let R
   try { R = JSON.parse(Buffer.from(m[1], 'base64').toString('utf8')) }
