@@ -138,7 +138,10 @@ if (!src.includes('  boot()\n})()')) {
 
 fs.mkdirSync(OUT, { recursive: true })
 for (const [file, code] of Object.entries(cases)) {
-  const out = src.replace('  boot()\n})()', code + '\n})()')
+  // 静态页是 file://，服务器路径 /__llmr/... 解析不了 —— 改成相对路径，图里才看得到 logo
+  const out = src
+    .replace('/__llmr/logo-mark.png', '../tools/llmr/logo-mark.png')
+    .replace('  boot()\n})()', code + '\n})()')
   const p = path.join(OUT, file)
   fs.writeFileSync(p, out, 'utf8')
   console.log('写出 ' + p)

@@ -1,4 +1,4 @@
-/* LLM R · SWF 自带界面的引导层
+/* LLM-R · SWF 自带界面的引导层
  *
  * 由服务器注入到 SWF 的 HTML 里。页面**只通过 postMessage 与宿主说话**——
  * iframe 是 sandbox="allow-scripts" 且不给 allow-same-origin，所以它拿到的是

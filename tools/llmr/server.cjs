@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict'
-// LLM R WebUI —— LLM R 自己的前端，**不依赖 DSH**。
+// LLM-R WebUI —— LLM-R 自己的前端，**不依赖 DSH**。
 //
-// LLM R 的前端与后端都能独立运行：
+// LLM-R 的前端与后端都能独立运行：
 //   后端 = validator / loader / executor / backends（纯 Node）
 //   前端 = 本文件提供的页面 + JSON 接口
 // DSH 插件只是「接入方式之一」，不是必需。
@@ -165,11 +165,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ── 宿主自带的引导层与令牌（给 SWF 的界面用）──
-    if (u.pathname === '/__llmr/uiboot.js' || u.pathname === '/__llmr/ui.css') {
-      const f = path.join(__dirname, u.pathname === '/__llmr/uiboot.js' ? 'uiboot.js' : 'ui.css')
+    const HOST_ASSET = {
+      '/__llmr/uiboot.js': 'uiboot.js',
+      '/__llmr/ui.css': 'ui.css',
+      '/__llmr/logo-mark.png': 'logo-mark.png',
+    }
+    if (HOST_ASSET[u.pathname]) {
+      const f = path.join(__dirname, HOST_ASSET[u.pathname])
       if (!fs.existsSync(f)) { res.writeHead(404); res.end(); return }
       res.writeHead(200, {
-        'content-type': u.pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css; charset=utf-8',
+        'content-type': MIME[path.extname(f).toLowerCase()] || 'application/octet-stream',
         'cache-control': 'no-store',
       })
       res.end(fs.readFileSync(f))
@@ -400,7 +405,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log('LLM R WebUI  http://127.0.0.1:' + PORT + '/')
+  console.log('LLM-R WebUI  http://127.0.0.1:' + PORT + '/')
   console.log('目录: ' + DIR)
   console.log('根:   ' + ROOT)
   console.log('真模型后端: ' + (store.getSettings().model.apiKey ? '已配置 Key' : '无 Key（只有 echo）'))

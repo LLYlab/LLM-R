@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LLM R</title>
+<title>LLM-R</title>
 <style>
   :root{
     /* 底色：带冷调的近黑。整体只做暗色——一个 runtime 控制台就该长这样 */
@@ -55,11 +55,9 @@
   header::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:1px;
          background:linear-gradient(90deg,transparent,rgba(76,201,240,.5) 18%,rgba(123,97,255,.45) 55%,transparent);
          opacity:.62}
-  .brand{display:flex;align-items:center;gap:11px;font-weight:680;font-size:15px;letter-spacing:.005em}
-  .brand .mark{width:30px;height:30px;flex:none;border-radius:9px;display:grid;place-items:center;
-         background:linear-gradient(145deg,#123040,#1a1a3d);
-         border:1px solid rgba(76,201,240,.34);
-         box-shadow:0 0 0 1px rgba(76,201,240,.07),0 4px 16px -4px rgba(76,201,240,.45)}
+  .brand{display:flex;align-items:center;gap:14px;font-weight:680;font-size:15px;letter-spacing:.005em}
+  .brand .mark{width:40px;height:29px;flex:none;display:block;margin-right:2px}
+  .brand .mark img{width:100%;height:100%;object-fit:contain;display:block}
   .brand .name{display:flex;align-items:baseline;gap:7px}
   .brand .r{background:linear-gradient(100deg,var(--accent),var(--accent2));
          -webkit-background-clip:text;background-clip:text;color:transparent;
@@ -307,7 +305,7 @@
 <body>
 
 <header>
-  <div class="brand"><span class="mark"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h5.5M4 12h9M4 18h5.5" stroke="#4cc9f0" stroke-width="2" stroke-linecap="round"/><circle cx="17.5" cy="6" r="2.2" stroke="#4cc9f0" stroke-width="1.6"/><circle cx="17.5" cy="18" r="2.2" stroke="#7b61ff" stroke-width="1.6"/><path d="M9.5 12h4.2M17.5 8.2v7.6" stroke="#2ee6c5" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="2 2"/></svg></span><span class="name">LLM <span class="r">R</span><span class="tag">Light Model Runtime</span></span></div>
+  <div class="brand"><span class="mark"><img src="/__llmr/logo-mark.png" alt=""></span><span class="name">LLM<span class="r">-R</span><span class="tag">Light Model Runtime</span></span></div>
   <div class="seg" id="modes">
     <button data-mode="user">用户</button>
     <button data-mode="dev">开发者</button>
@@ -418,7 +416,7 @@
       '<button class="newbtn" id="btnNew"><span class="plus">＋</span> 新建 AGT</button>'
       + '<div class="side-h">我的 AGT</div>' + list
     $('#sideFoot').innerHTML = (S.settings.model && S.settings.model.hasKey)
-      ? '<div class="sidefoot">LLM R · 独立运行</div>'
+      ? '<div class="sidefoot">LLM-R · 独立运行</div>'
       : '<div class="sidefoot">未配置模型 API<br><a id="footSet">去设置</a></div>'
     var fset = $('#footSet')
     if (fset) fset.onclick = function () { S.panel = 'settings'; paint() }
@@ -1190,7 +1188,7 @@
     $('#btnBack').onclick = function () { S.panel = null; paint() }
     var s = S.settings, m = s.model || {}
     $('#view').innerHTML = '<div class="page">'
-      + '<p class="title">设置</p><p class="sub">LLM R 独立运行；这些设置存在 LLM R 根目录的 settings.json。</p>'
+      + '<p class="title">设置</p><p class="sub">LLM-R 独立运行；这些设置存在 LLM-R 根目录的 settings.json。</p>'
 
       + '<div class="card"><div class="h2" style="margin-top:0">模型 API</div>'
       + '<div class="hint" style="margin-bottom:16px">这里配的是<b>接口与凭据</b>。'
