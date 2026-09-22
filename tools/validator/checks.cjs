@@ -6,15 +6,22 @@ const path = require('node:path')
 const expr = require('../llmr/expression.cjs')
 
 // ── 工具类别表（LLMR-校验器规格.md §3 #1）────────────────────────────────
-const TOOL_CLASSES = {
-  exec: ['pwsh', 'bash', 'run_code', 'cmd', 'dlt_run', 'dlt_build'],
-  'fs-write': ['write', 'edit', 'dlt_doc_write'],
-  artifact: ['docx_write', 'xlsx_write', 'pptx_write', 'pdf_write'],
-  net: ['web_search', 'web_fetch'],
-  read: ['read', 'read_image', 'glob', 'grep', 'dlt_doc_read', 'dlt_env'],
+// ── 全局工具注册表 ──
+// 「可复用实现全局注册，SWF/AMZ 只声明选用」（原则 6）。工具名与类别不再写死在这里，
+// 而是读 tools/toolbox.json —— 那张表同时给界面（llmr.* 通道）和校验器用。
+const TOOLBOX = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'toolbox.json'), 'utf8')) }
+  catch (_) { return { classes: {}, tools: [] } }
+})()
+const TOOL_CLASSES = {}
+for (const t of (Array.isArray(TOOLBOX.tools) ? TOOLBOX.tools : [])) {
+  if (!t || typeof t !== 'object') continue
+  if (typeof t.name !== 'string' || typeof t.class !== 'string') continue
+  ;(TOOL_CLASSES[t.class] = TOOL_CLASSES[t.class] || []).push(t.name)
 }
 const CLASS_OF = {}
 for (const [cls, names] of Object.entries(TOOL_CLASSES)) for (const n of names) CLASS_OF[n] = cls
+const KNOWN_TOOLS = new Set(Object.keys(CLASS_OF))
 const classifyTool = (n) => CLASS_OF[n] || 'unknown'
 
 const DETERMINISTIC = ['artifact', 'run', 'args']
@@ -61,7 +68,7 @@ function runChecks (input, opts = {}) {
   const swf = asObject(input)
   const mode = opts.mode || 'author'
   const library = asObject(opts.amzLibrary)
-  const toolRegistry = opts.toolRegistry || null
+  const toolRegistry = opts.toolRegistry || KNOWN_TOOLS
   const uiPages = opts.uiPages || null
   const uiRoot = opts.uiRoot || null
 
@@ -365,6 +372,12 @@ function runChecks (input, opts = {}) {
   // maxRounds 有上界是 schema 管的；这里只确认**允许环的地方不许无界**
   // resume：池把主流程接回去的目标必须存在，否则"修好了"却回不去
   for (const { z, path: zp } of poolZones) {
+    // after：武装条件指向的节点必须存在（"上下文备好了再响应"是宿主的事实，不靠模型自报）
+    if (z.after !== undefined) {
+      if (typeof z.after !== 'string' || !z.after) E('LLMR-E114', zp + '/after', 'after 必须是非空 AMZ id')
+      else if (!byId.has(z.after)) E('LLMR-E114', zp + '/after', 'after 指向不存在的 AMZ：' + z.after)
+    }
+
     if (z.resume === undefined) continue
     if (typeof z.resume !== 'string' || !z.resume) E('LLMR-E114', zp + '/resume', 'resume 必须是非空 AMZ id')
     else if (!byId.has(z.resume)) E('LLMR-E114', zp + '/resume', 'resume 指向不存在的 AMZ：' + z.resume)

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>怎么转正</title><style>
+  body{display:flex;flex-direction:column;height:100%}
+  .wrap{flex:1;min-height:0;overflow:auto;padding:28px 30px 56px;width:100%;max-width:860px;margin:0 auto}
+  .lead{font-size:21px;font-weight:660;letter-spacing:-.02em;margin:0 0 8px}
+  .say{color:var(--llmr-muted);font-size:13px;margin:0 0 22px}
+  label.f{display:block;font-family:var(--llmr-mono);font-size:10px;font-weight:600;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--llmr-muted2);margin:15px 0 7px}
+  .actions{display:flex;gap:9px;align-items:center;margin-top:18px;flex-wrap:wrap}
+
+  .steps{counter-reset:n;list-style:none;margin:0;padding:0}
+  .steps li{counter-increment:n;position:relative;padding:14px 0 14px 42px;
+        border-bottom:1px solid var(--llmr-line2)}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(n);position:absolute;left:0;top:13px;width:26px;height:26px;
+        border-radius:8px;display:grid;place-items:center;font-family:var(--llmr-mono);font-size:12px;
+        background:var(--llmr-soft2);border:1px solid var(--llmr-line);color:var(--llmr-fg2)}
+  .steps b{display:block;font-weight:620;margin-bottom:3px}
+  .steps code{background:var(--llmr-soft);border:1px solid var(--llmr-line2);border-radius:6px;
+        padding:2px 7px;font-size:12px}
+  .big{margin-top:22px;padding:16px 18px;border-radius:var(--llmr-r);
+        background:var(--llmr-panel2);border:1px solid var(--llmr-line);
+        border-left:2px solid var(--llmr-accent);font-size:13.5px;line-height:1.9}
+
+</style></head><body>
+
+<div class="wrap">
+  <p class="lead">草稿交了 —— 现在轮到人</p>
+  <p class="say">这一步流程帮不了你，也不该帮。</p>
+
+  <ol class="steps">
+    <li><b>先看能力表面</b><code>node tools/validator/validate.cjs &lt;草稿&gt;</code><br>
+        它会把每个容器能用什么工具打出来。</li>
+    <li><b>自己过目</b>尤其盯带 <code>run_shell</code> / 写文件 / 出网 的容器——那些是能真动手的。</li>
+    <li><b>签哈希</b>把 <code>_review.surfaceHash</code> 填进声明（校验器会打印当前值）。</li>
+    <li><b>验一遍</b><code>validate.cjs &lt;文件&gt; --mode=import</code> —— 哈希对得上才算数。</li>
+  </ol>
+
+  <div class="big">
+    <b>为什么非得过人手？</b><br>
+    因为草稿里没有 <code>_review.surfaceHash</code>。那份签名是「我看过这张流程能碰什么，我认了」的记录。
+    让 AI 替人签，等于把审查机制变成装饰。<br>
+    <span class="llmr-hint">—— 流程可以由 AI 起草，签名不行。</span>
+  </div>
+
+  <div class="actions">
+    <button class="llmr-btn primary" id="again">再转一份</button>
+    <span class="llmr-hint" id="msg"></span>
+  </div>
+</div>
+
+<script>(function(){var $=function(s){return document.querySelector(s)}
+
+  $('#again').onclick=function(){ llmr.screen('skill') }
+  llmr.ready().then(function(st){
+    if(st&&st.lastOutput) $('#msg').textContent=String(st.lastOutput).split('\n')[0].slice(0,90)
+  }).catch(function(){})
+
+})()</script></body></html>

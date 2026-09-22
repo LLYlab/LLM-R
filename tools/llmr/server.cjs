@@ -14,11 +14,13 @@
 //       配了 Key 才算同意真实调用；调哪个模型由 SWF 的每个 AMZ 自己声明。
 
 const http = require('node:http')
+const { spawnSync } = require('node:child_process')
 const fs = require('node:fs')
 const path = require('node:path')
 const loader = require('./loader.cjs')
 const { listOf, viewOf, indexOf, matchOf } = require('./view.cjs')
 const { executeSwf, selectScreen } = require('./executor.cjs')
+const { costOf, formatCost } = require('./cost.cjs')
 const { echoBackend, httpBackend } = require('./backends.cjs')
 const { makeStore } = require('./store.cjs')
 
@@ -149,6 +151,57 @@ function resolveSwfDir (dir, id) {
   return null
 }
 
+
+// ── 本地接入 ──
+// 这些是"与用户交互"类能力：选文件、剪贴板、打开路径。
+// 参数一律走**环境变量**传进 PowerShell，不拼字符串——标题里有引号不该变成注入。
+
+const PS_HEAD = [
+  '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
+  'Add-Type -AssemblyName System.Windows.Forms | Out-Null',
+].join('; ')
+
+const PICK_SCRIPTS = {
+  file: PS_HEAD + '; $d = New-Object System.Windows.Forms.OpenFileDialog; $d.Multiselect = $false;',
+  folder: PS_HEAD + '; $d = New-Object System.Windows.Forms.FolderBrowserDialog;',
+  save: PS_HEAD + '; $d = New-Object System.Windows.Forms.SaveFileDialog;',
+}
+const PICK_TAIL = [
+  'if ($env:LLMR_PICK_TITLE) { $d.Title = $env:LLMR_PICK_TITLE }',
+  'if ($env:LLMR_PICK_DEFAULT) {',
+  '  if ($d.PSObject.Properties.Name -contains "InitialDirectory") { $d.InitialDirectory = $env:LLMR_PICK_DEFAULT }',
+  '  elseif ($d.PSObject.Properties.Name -contains "SelectedPath") { $d.SelectedPath = $env:LLMR_PICK_DEFAULT }',
+  '}',
+  'if ($env:LLMR_PICK_FILTER -and $d.PSObject.Properties.Name -contains "Filter") { $d.Filter = $env:LLMR_PICK_FILTER }',
+  'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {',
+  '  if ($d.PSObject.Properties.Name -contains "FileName") { [Console]::Out.Write($d.FileName) }',
+  '  else { [Console]::Out.Write($d.SelectedPath) }',
+  '}',
+].join('; ')
+
+const SHELL_TASKS = {
+  open: PS_HEAD + '; Start-Process -FilePath $env:LLMR_TARGET',
+  reveal: PS_HEAD + '; Start-Process explorer.exe -ArgumentList ("/select," + $env:LLMR_TARGET)',
+  clipboardRead: PS_HEAD + '; [Console]::Out.Write((Get-Clipboard -Raw))',
+  clipboardWrite: PS_HEAD + '; Set-Clipboard -Value $env:LLMR_TEXT',
+}
+
+/**
+ * 跑一段本机脚本。**同步**——这些操作本来就是"等人操作完"的，
+ * 异步只会让调用方多绕一圈。带超时，免得对话框没人管就把服务挂住。
+ */
+function runLocal (script, env, timeoutMs) {
+  const r = spawnSync('powershell.exe', ['-NoProfile', '-STA', '-Command', script], {
+    env: Object.assign({}, process.env, env || {}),
+    encoding: 'utf8',
+    timeout: timeoutMs || 300000,
+    windowsHide: true,
+  })
+  if (r.error) return { ok: false, error: '起不来 powershell：' + r.error.message }
+  if (r.status !== 0) return { ok: false, error: (r.stderr || '').trim().slice(0, 400) || ('退出码 ' + r.status) }
+  return { ok: true, out: (r.stdout || '').trim() }
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -183,6 +236,7 @@ const server = http.createServer(async (req, res) => {
       '/__llmr/uiboot.js': 'uiboot.js',
       '/__llmr/ui.css': 'ui.css',
       '/__llmr/logo-mark.png': 'logo-mark.png',
+      '/__llmr/toolbox.json': path.join('..', 'toolbox.json'),
     }
     if (HOST_ASSET[u.pathname]) {
       const f = path.join(__dirname, HOST_ASSET[u.pathname])
@@ -248,6 +302,38 @@ const server = http.createServer(async (req, res) => {
       } catch (e) {
         json(res, 500, { ok: false, error: String(e && e.message ? e.message : e) })
       }
+      return
+    }
+
+    // ── 本地接入：选文件 / 剪贴板 / 打开 ──
+    // 页面在 sandbox iframe 里碰不到本机，这些只能由宿主代劳。
+    if (u.pathname === '/api/pick') {
+      if (req.method !== 'POST') { json(res, 405, { ok: false, error: '只接受 POST' }); return }
+      const body = (await readBody(req)) || {}
+      const kind = String(body.kind || 'file')
+      if (!PICK_SCRIPTS[kind]) { json(res, 400, { ok: false, error: '未知 kind：' + kind + '（file / folder / save）' }); return }
+      const r = runLocal(PICK_SCRIPTS[kind] + PICK_TAIL, {
+        LLMR_PICK_TITLE: String(body.title || '选择一个位置'),
+        LLMR_PICK_DEFAULT: String(body.defaultPath || ''),
+        LLMR_PICK_FILTER: String(body.filter || ''),
+      })
+      if (!r.ok) { json(res, 500, r); return }
+      // 用户点了取消 → 空串。**取消是正常结果，不是错误。**
+      json(res, 200, { ok: true, path: r.out || null, cancelled: r.out === '' })
+      return
+    }
+
+    if (u.pathname === '/api/local') {
+      if (req.method !== 'POST') { json(res, 405, { ok: false, error: '只接受 POST' }); return }
+      const body = (await readBody(req)) || {}
+      const op = String(body.op || '')
+      if (!SHELL_TASKS[op]) { json(res, 400, { ok: false, error: '未知 op：' + op }); return }
+      const r = runLocal(SHELL_TASKS[op], {
+        LLMR_TARGET: String(body.path || ''),
+        LLMR_TEXT: String(body.text === undefined ? '' : body.text),
+      }, 30000)
+      if (!r.ok) { json(res, 500, r); return }
+      json(res, 200, { ok: true, text: op === 'clipboardRead' ? r.out : undefined })
       return
     }
 
@@ -387,8 +473,13 @@ const server = http.createServer(async (req, res) => {
         screen = selectScreen(prepared.swf, env)
       } catch (_) { screen = null }
 
+      // 成本画像：把"省在哪"变成能打印的数字，否则"省 token"只是口号
+      let cost = null
+      try { cost = costOf(prepared.swf, r) } catch (_) { cost = null }
+
       json(res, 200, {
         screen,
+        cost,
         ok: r.ok,
         status: r.status,
         reason: r.reason || null,

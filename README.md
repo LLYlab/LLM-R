@@ -6,7 +6,7 @@
 
 **用「人工设计的固定工作流 + 硬编码调用的隔离容器」，取代「通用 Agent 的自主工具使用」。**
 
-[![tests](https://img.shields.io/badge/tests-304%20passing-brightgreen)](#证据不是形容词)
+[![tests](https://img.shields.io/badge/tests-398%20passing-brightgreen)](#证据不是形容词)
 [![deps](https://img.shields.io/badge/runtime%20deps-0-blue)](#30-秒跑起来)
 [![schema](https://img.shields.io/badge/schema-v1.1-orange)](#它长什么样)
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
@@ -165,21 +165,69 @@ WebUI 起来了就能点着走完整个流程——**默认 echo 后端，不产
 
 ---
 
+## 三个能查的东西
+
+**① 工具注册表**（`tools/toolbox.json`）—— 40 个工具、6 个类别、两种表面（AMZ / 界面）。
+校验器的"工具是否存在"和"属于哪一类"都从这里读：
+
+> **可复用实现全局注册，SWF 只声明选用。** 工具表不是每个流程自己编的。
+
+**② 本地接入** —— 图形化选文件 / 选目录 / 另存为 / 剪贴板 / 打开路径 / 资源管理器定位。
+
+SWF 自带的界面跑在 `sandbox="allow-scripts"` 的 iframe 里，**碰不到你的硬盘**——
+这是对的。所以这类事由**宿主**代劳：页面调 `llmr.pick.file()`，宿主弹真的系统对话框。
+参数走环境变量传进 PowerShell，不拼字符串。
+
+**③ 成本画像** —— `node tools/llmr/run.cjs <swf> --report`：
+
+```
+成本画像
+  模型调用 2 次（另有 1 次暂停，不花模型）
+  走到了 3/15 个容器，跳过 12 个：not_homework, read_pdf, …
+  确定性判定 1 次 · 依赖模型的判定 2 次
+  工具面：LLM-R 实际背 1 条 · 整表口径 4×2=8 条 → 省 7 条
+```
+
+**"省 token"得是能打印的数字，不能是口号。**
+
+---
+
+## 六张 example
+
+| SWF | 一句话 |
+|---|---|
+| `coding-auto-run` | 你只说清要什么，**不看中间源码**——改坏了自己回头修 |
+| `coding-help` | 先写 Goal 锚住，然后像 Copilot 边写边问——**它不改你的文件** |
+| `coding-draft` | 在壳里写 `AI:` 指令，它保留你的壳、只填肉 |
+| `story-novel` | 大纲 / 新章 / 编辑渲染 / 亲自编辑 |
+| `story-dnd` | AI 当 DM，回合循环走环控区 |
+| `skill-to-swf` | 把 skill 文档转成 **SWF 草稿**——**签名要你自己签** |
+
+`skill-to-swf` 撞上了一条自己的原则：「SWF 永远是人的产物」。
+解法不是装看不见，而是**让机制去拦**：它交出的草稿**绝不写 `_review.surfaceHash`**，
+所以在 `--mode=import` 下一定过不了。**流程可以由 AI 起草，签名不行。**
+
+> 「稳」的含义要说清：不是"模型不会说谎"，是**模型说谎时流程也只在设计好的格子里走**。
+> `tools/llmr/examples.selftest.cjs` 拿五种模型性格各跑一遍来证明这件事。
+
+---
+
 ## 证据，不是形容词
 
 <table>
 <tr><td width="50%" valign="top">
 
-**240 项断言，全绿**
+**398 项断言，全绿**
 
 ```
+真人模拟       133   ← 六张 example × 五种模型性格
+执行器与后端   116   ← 含环控区 / 暂停恢复
+校验器          59   ← 含环控区 / UI 页面
 加载器          39
-校验器          35   ← 含环检测
 求值器/分析     51
-执行器与后端    96   ← 含暂停/恢复
 作业端到端      19   ← 真声明，非玩具图
 ────────────────────
-合计           240
+合计           398
 ```
 
 外加两个 fuzz 套件（**3.6 万份畸形输入，0 崩溃**）与一次一致性审计——

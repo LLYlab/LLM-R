@@ -91,6 +91,23 @@
       list: function (p) { return call('fs', { op: 'list', path: p || '' }) },
     },
 
+    /**
+     * 本地接入。SWF 的界面在 sandbox iframe 里——**碰不到本机**，
+     * 所以"选个文件"这类事只能请宿主代劳。宿主会弹真的系统对话框。
+     * 用户点了取消返回 null（取消不是错误）。
+     */
+    pick: {
+      file: function (o) { return call('pick', Object.assign({ kind: 'file' }, o || {})) },
+      folder: function (o) { return call('pick', Object.assign({ kind: 'folder' }, o || {})) },
+      save: function (o) { return call('pick', Object.assign({ kind: 'save' }, o || {})) },
+    },
+    clipboard: {
+      read: function () { return call('local', { op: 'clipboardRead' }) },
+      write: function (t) { return call('local', { op: 'clipboardWrite', text: t }) },
+    },
+    open: function (p) { return call('local', { op: 'open', path: p }) },
+    reveal: function (p) { return call('local', { op: 'reveal', path: p }) },
+
     /** 掷骰。**宿主掷、宿主记**——掷骰结果必须进轨迹，否则不可复现 */
     dice: function (n, faces) { return call('dice', { n: n || 1, faces: faces || 20 }) },
 

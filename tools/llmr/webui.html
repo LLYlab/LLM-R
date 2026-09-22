@@ -309,6 +309,9 @@
   .g-legend b.pause{background:color-mix(in srgb,var(--warn) 16%,transparent);border-color:var(--warn)}
   .g-legend b.term{border-style:dashed}
 
+  .cost{font-family:var(--mono);font-size:12px;color:var(--muted);margin:0 0 14px;
+        padding:10px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--soft);line-height:1.9}
+  .cost b{color:var(--fg2);font-weight:600}
   .out{background:var(--soft);border:1px solid var(--line2);border-radius:9px;padding:16px 18px;
        white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12.5px}
   /* 成品：像一张纸，而不是一段日志 */
@@ -701,6 +704,18 @@
         swf: dash(((S.view || {}).swf || {}).id),
         op: m.payload.op, path: m.payload.path, text: m.payload.text,
       }).then(function (r) { r && r.ok ? reply(r) : fail(new Error((r && r.error) || '文件操作失败')) }).catch(fail)
+      return
+    }
+    if (m.type === 'pick') {
+      post('/api/pick', m.payload || {})
+        .then(function (r) { reply(r) })
+        .catch(function (e) { fail(e) })
+      return
+    }
+    if (m.type === 'local') {
+      post('/api/local', m.payload || {})
+        .then(function (r) { r && r.ok ? reply(r) : fail(new Error((r && r.error) || '本机操作失败')) })
+        .catch(function (e) { fail(e) })
       return
     }
     if (m.type === 'dice') {
@@ -1099,10 +1114,25 @@
     return '<div class="h2">过程</div><div class="flow">' + out.join('') + '</div>'
   }
 
+  // 成本画像：这是 LLM-R 主张 cheap 的**证据位**——
+  // 不放这儿的话，"省 token"就只是一句谁都能说的话。
+  function costLine (c) {
+    if (!c || !c.calls) return ''
+    var sf = c.surface || {}
+    var bits = ['模型调用 <b>' + c.calls + '</b> 次']
+    if (c.pauseSteps) bits.push(c.pauseSteps + ' 次暂停（不花模型）')
+    bits.push('走到 <b>' + c.reachedCount + '/' + c.declaredCount + '</b> 个容器')
+    if (c.skippedCount) bits.push('跳过 <b>' + c.skippedCount + '</b> 个')
+    if (c.deterministicEdges) bits.push('确定性判定 <b>' + c.deterministicEdges + '</b> 次')
+    bits.push('工具面 <b>' + sf.llmr + '</b> 条（整表口径 ' + sf.flatTotal + ' 条）')
+    return '<div class="cost">' + bits.join(' · ') + '</div>'
+  }
+
   function paintResult (r) {
     var h = '<div class="h2">结果</div>'
     h += r.ok ? '<div class="e-ok" style="margin-bottom:12px">完成 · ' + r.steps + ' 步</div>'
               : '<div class="e-err" style="margin-bottom:12px">' + esc(r.status) + esc(r.reason ? ' — ' + r.reason : '') + '</div>'
+    if (r.cost) h += costLine(r.cost)
     if (r.finalOutput) h += '<div class="paper">' + esc(r.finalOutput) + '</div>'
     h += graphBlock(r)
     $('#runBox').innerHTML = h

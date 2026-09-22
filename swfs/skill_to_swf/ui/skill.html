@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>给一份 skill</title><style>
+  body{display:flex;flex-direction:column;height:100%}
+  .wrap{flex:1;min-height:0;overflow:auto;padding:28px 30px 56px;width:100%;max-width:860px;margin:0 auto}
+  .lead{font-size:21px;font-weight:660;letter-spacing:-.02em;margin:0 0 8px}
+  .say{color:var(--llmr-muted);font-size:13px;margin:0 0 22px}
+  label.f{display:block;font-family:var(--llmr-mono);font-size:10px;font-weight:600;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--llmr-muted2);margin:15px 0 7px}
+  .actions{display:flex;gap:9px;align-items:center;margin-top:18px;flex-wrap:wrap}
+
+  .pick{display:flex;gap:9px;align-items:center;margin-bottom:6px}
+  .note{margin-top:28px;padding:16px 18px;border-left:2px solid var(--llmr-accent3);
+        background:var(--llmr-soft);border-radius:0 var(--llmr-r) var(--llmr-r) 0;
+        font-size:12.5px;line-height:1.9;color:var(--llmr-fg2)}
+  .note b{color:var(--llmr-fg)}
+
+</style></head><body>
+
+<div class="wrap">
+  <p class="lead">给一份 skill</p>
+  <p class="say">它可以是一份 <b class="llmr-mono">SKILL.md</b>、一个 agent 说明、或者你手写的几步规程。</p>
+
+  <label class="f">skill 文件</label>
+  <div class="pick">
+    <input id="path" class="llmr-input" type="text" placeholder="不用手打——点右边选" autocomplete="off">
+    <button class="llmr-btn" id="browse" style="flex:none">选文件…</button>
+  </div>
+  <p class="llmr-hint" id="pickMsg">选文件走的是系统的打开对话框（宿主代劳，页面碰不到你的硬盘）。</p>
+
+  <label class="f">也可以直接贴进来</label>
+  <textarea id="text" rows="9" placeholder="---&#10;name: 我的技能&#10;description: …&#10;---&#10;&#10;步骤…"></textarea>
+
+  <label class="f">给它起个名字（可选）</label>
+  <input id="name" class="llmr-input" type="text" placeholder="留空就按 skill 里的名字" autocomplete="off">
+
+  <div class="actions">
+    <button class="llmr-btn primary" id="go">转成草稿</button>
+    <span class="llmr-hint" id="msg"></span>
+  </div>
+
+  <div class="note">
+    <b>它交出来的是草稿，不是成品。</b><br>
+    草稿里<b>没有 <span class="llmr-mono">_review.surfaceHash</span></b>——那份签名只有人审过能力表面之后才能写。
+    所以它在 <span class="llmr-mono">--mode=import</span> 下一定过不了。这是设计：<br>
+    <b>流程可以由 AI 起草，但签名是人的。</b>
+  </div>
+</div>
+
+<script>(function(){var $=function(s){return document.querySelector(s)}
+
+  var msg=$('#msg'), go=$('#go')
+  $('#browse').onclick=function(){
+    $('#pickMsg').textContent='正在等你选…'
+    llmr.pick.file({title:'选一份 skill 文档', filter:'文档|*.md;*.txt;*.json|所有文件|*.*'})
+      .then(function(r){
+        if(!r || !r.path){ $('#pickMsg').textContent='取消了。手打路径也行。'; return }
+        $('#path').value=r.path; $('#pickMsg').textContent='已选：'+r.path
+      }).catch(function(e){ $('#pickMsg').textContent=String(e.message||e) })
+  }
+  go.onclick=function(){
+    var p=$('#path').value.trim(), t=$('#text').value.trim()
+    if(!p && !t){ msg.textContent='选个文件，或者把内容贴进来'; return }
+    go.disabled=true; msg.textContent='正在读…'
+    var args={ skill: p || t }
+    if($('#name').value.trim()) args.name=$('#name').value.trim()
+    llmr.run(args).catch(function(e){ go.disabled=false; msg.textContent=String(e.message||e) })
+  }
+  llmr.ready().then(function(st){
+    var a=(st&&st.args)||{}
+    if(a.skill) $('#text').value=a.skill
+    if(st&&st.lastOutput) msg.textContent='上次的产出：'+String(st.lastOutput).slice(0,80)
+  }).catch(function(){})
+
+})()</script></body></html>

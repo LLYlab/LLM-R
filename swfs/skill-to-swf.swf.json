@@ -1,0 +1,244 @@
+{
+  "swf": {
+    "id": "skill_to_swf",
+    "version": 1,
+    "title": "把 skill 变成 SWF · Skill → SWF",
+    "invoke": {
+      "tags": [
+        "skill",
+        "技能",
+        "转SWF",
+        "生成流程",
+        "skill2swf",
+        "SKILL.md",
+        "固化"
+      ],
+      "when": "给一份 skill 文档（SKILL.md / agent.md），它抽成一张 SWF 草稿，自己跑校验器纠一轮，然后交给你审 —— **签名要你自己签**",
+      "args": [
+        {
+          "name": "skill",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    "defaults": {
+      "model": "deepseek-v4-flash"
+    },
+    "amz": [
+      {
+        "id": "read_skill",
+        "kind": "exp",
+        "prompt": "读这份 skill 文档。抽出三件事，逐条列出来：\n1. **它干什么**（一句话）\n2. **分几步**（每一步：输入什么、产出什么、需要碰什么——文件？命令？网络？）\n3. **它的边界**（明确说了不做什么、依赖什么前提）\n抽不出来就写「文档里没说」，**不要替它编**。",
+        "tools": [
+          "read_file",
+          "list_dir"
+        ],
+        "model": "deepseek-v4-pro",
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "steps": "int",
+              "usable": "bool"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "not_usable",
+        "kind": "exp",
+        "prompt": "这份文档不够变成流程（说不出分几步，或说了但全是「视情况而定」）。\n**不要硬凑一张流程出来。** 告诉用户缺什么：哪一步说不清、哪个边界没写。",
+        "tools": [],
+        "output": {
+          "body": "text"
+        }
+      },
+      {
+        "id": "judge_shape",
+        "kind": "ttc",
+        "prompt": "判断形态：这份 skill 是**一次问答**（single）还是**多步流程**（flow）？\n判据：需不需要在中间停下来看前一步的产出再决定下一步。需要就是 flow。\n只报结论，不要解释超过两句。",
+        "tools": [],
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "shape": "text",
+              "drafting": "bool"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "draft_swf",
+        "kind": "exp",
+        "prompt": "产出 SWF 声明（JSON，形如 {\"swf\":{...}}）。硬要求：\n1. `amz[]` 每个容器：id / kind / prompt / tools / output；**工具名必须在全局注册表里**\n2. `order[]` 每条边：from / to / when / level；**能用 args./run./artifact. 判定的就用 level 1**（零成本）\n3. `terminal[]` 覆盖所有出口\n4. **不写 `ui` 段**（先不自带界面，走通用表单）\n5. 形状是 single 就一个容器 + 一条到终态的边；是 flow 才铺多步\n6. **不写 `_review`** —— 那是人签的\n只输出 JSON，外面不要包解释。",
+        "tools": [],
+        "model": "deepseek-v4-pro",
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "drafted": "bool"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "self_check",
+        "kind": "ttc",
+        "prompt": "把刚起草的声明写到临时文件，**真的跑一遍校验器**：\n`node tools/validator/validate.cjs <临时文件> --json`\n把 errors 原样读回来（不要自己判断对错，看校验器怎么说）。没有错就报 clean=true。",
+        "tools": [
+          "read_file",
+          "write_file",
+          "run_shell"
+        ],
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "clean": "bool",
+              "errors": "int"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "refine",
+        "kind": "exp",
+        "prompt": "（环控·纠错）校验器报了错。**只修报出来的那几条**：工具名不在注册表就换掉，缺 terminal 就补，边缺 else 就补。不要顺手重写整张声明。",
+        "tools": [],
+        "model": "deepseek-v4-pro",
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "refined": "bool"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "deliver",
+        "kind": "exp",
+        "prompt": "交草稿。写到 `<name>.draft.swf.json`。\n**绝对不要写 `_review.surfaceHash`** —— 那份哈希只有人审过能力表面之后才能签，你签了就等于替人做了决定。\n写文件，报出完整路径。",
+        "tools": [
+          "write_file",
+          "list_dir"
+        ],
+        "output": {
+          "body": "free",
+          "signal": {
+            "fields": {
+              "delivered": "bool"
+            },
+            "encoder": "self"
+          }
+        }
+      },
+      {
+        "id": "guide",
+        "kind": "exp",
+        "prompt": "告诉用户接下来怎么把草稿变成正式的：\n1. 先看能力表面：`node tools/validator/validate.cjs <文件>` 会打出每个容器能用什么\n2. **能力表面你得自己过目** —— 尤其是有 run_shell / 写文件 / 出网的容器\n3. 过关了，把 `_review.surfaceHash` 填进声明（校验器会打印当前哈希）\n4. 之后用 `--mode=import` 校验，哈希对得上才算数\n说清一件事：**这一步是人的活，不是流程的活。**",
+        "tools": [],
+        "output": {
+          "body": "text"
+        }
+      },
+      {
+        "id": "abort",
+        "kind": "exp",
+        "prompt": "某一步失败了。报告：哪一步、失败信息、需要用户做什么。**不要重试、不要猜。**",
+        "tools": [],
+        "output": {
+          "body": "text"
+        }
+      }
+    ],
+    "order": [
+      {
+        "from": "read_skill",
+        "to": "judge_shape",
+        "when": "signal.usable == true",
+        "level": 2,
+        "else": "not_usable"
+      },
+      {
+        "from": "judge_shape",
+        "to": "draft_swf",
+        "when": "signal.shape == 'flow'",
+        "level": 2,
+        "else": "draft_swf"
+      },
+      {
+        "from": "draft_swf",
+        "to": "self_check",
+        "when": "run.status == 'ok'",
+        "level": 1,
+        "else": "abort"
+      },
+      {
+        "from": "self_check",
+        "to": "deliver",
+        "when": "signal.clean == true",
+        "level": 2
+      },
+      {
+        "from": "deliver",
+        "to": "guide",
+        "when": "run.status == 'ok'",
+        "level": 1,
+        "else": "abort"
+      }
+    ],
+    "terminal": [
+      "guide",
+      "not_usable",
+      "abort"
+    ],
+    "pool": [
+      {
+        "id": "fix_errors",
+        "on": "signal.clean == false",
+        "run": [
+          "refine"
+        ],
+        "resume": "self_check",
+        "maxRounds": 2,
+        "note": "校验器报错就修一轮再验。最多两轮——两轮还不过说明这份 skill 本身有问题，该退回给人。"
+      }
+    ],
+    "ui": {
+      "screens": [
+        {
+          "id": "draft",
+          "title": "草稿",
+          "entry": "ui/draft.html",
+          "when": "signal.drafting == true"
+        },
+        {
+          "id": "guide",
+          "title": "怎么转正",
+          "entry": "ui/guide.html",
+          "when": "signal.delivered == true"
+        },
+        {
+          "id": "skill",
+          "title": "给一份 skill",
+          "entry": "ui/skill.html"
+        }
+      ],
+      "fallback": "native"
+    }
+  }
+}

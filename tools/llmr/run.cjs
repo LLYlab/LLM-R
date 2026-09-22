@@ -5,7 +5,7 @@
 // 用法：
 //   node run.cjs <swf> [--lib=dir] [--backend=echo|http|dsh]
 //                     [--args='{"goal":"…"}'] [--signal=amzId.field=value]… [--fail=amzId]…
-//                     [--max-steps=n] [--trace=out.json] [--json]
+//                     [--max-steps=n] [--trace=out.json] [--json] [--report]
 //                     [--base-url=…] [--api-key=…]
 //
 // 退出码：0 完成 · 1 未完成/出错 · 2 用法错误
@@ -13,6 +13,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const loader = require('./loader.cjs')
+const { costOf, formatCost } = require('./cost.cjs')
 const { executeSwf } = require('./executor.cjs')
 const { echoBackend, httpBackend, dshBackend } = require('./backends.cjs')
 
@@ -125,6 +126,11 @@ async function main () {
     console.log(`结果: ${r.status}${r.reason ? ` —— ${r.reason}` : ''}`)
     if (r.finalOutput !== undefined) console.log(`最终产出: ${typeof r.finalOutput === 'string' ? r.finalOutput.split('\n')[0].slice(0, 120) : JSON.stringify(r.finalOutput)}`)
     console.log(`轨迹: ${r.trace.length} 步`)
+    if (args.report) {
+      console.log('')
+      console.log('成本画像')
+      for (const line of formatCost(costOf(prepared.swf, r)).split('\n')) console.log('  ' + line)
+    }
   }
 
   if (typeof args.trace === 'string') {

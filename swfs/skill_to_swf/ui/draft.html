@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>草稿</title><style>
+  body{display:flex;flex-direction:column;height:100%}
+  .wrap{flex:1;min-height:0;overflow:auto;padding:28px 30px 56px;width:100%;max-width:860px;margin:0 auto}
+  .lead{font-size:21px;font-weight:660;letter-spacing:-.02em;margin:0 0 8px}
+  .say{color:var(--llmr-muted);font-size:13px;margin:0 0 22px}
+  label.f{display:block;font-family:var(--llmr-mono);font-size:10px;font-weight:600;
+        letter-spacing:.14em;text-transform:uppercase;color:var(--llmr-muted2);margin:15px 0 7px}
+  .actions{display:flex;gap:9px;align-items:center;margin-top:18px;flex-wrap:wrap}
+
+  .out{background:var(--llmr-panel);border:1px solid var(--llmr-line);border-radius:var(--llmr-r);
+       padding:18px 20px;white-space:pre-wrap;word-break:break-word;line-height:1.75;
+       font-size:13px;max-height:56vh;overflow:auto;font-family:var(--llmr-mono)}
+  .out:empty::before{content:'草稿会出现在这里。';color:var(--llmr-muted)}
+
+</style></head><body>
+
+<div class="wrap">
+  <p class="lead">起草中</p>
+  <p class="say">它会自己跑一遍校验器，报错就修 —— 最多修两轮。</p>
+  <div class="out" id="out"></div>
+  <div class="actions">
+    <button class="llmr-btn primary" id="next">看怎么转正</button>
+    <span class="llmr-hint" id="msg"></span>
+  </div>
+</div>
+
+<script>(function(){var $=function(s){return document.querySelector(s)}
+
+  llmr.on('step', function(s){
+    var box=$('#out')
+    box.textContent += (box.textContent?'\n':'') + '· ' + s.amz + (s.pool?('  [环控·'+s.pool+']'):'') +
+      (s.signal && s.signal.errors!==undefined ? ('  校验错误 '+s.signal.errors+' 条') : '')
+    box.scrollTop=box.scrollHeight
+  })
+  $('#next').onclick=function(){ llmr.screen('guide') }
+  llmr.ready().then(function(st){
+    if(st&&st.lastOutput) $('#out').textContent=st.lastOutput
+    var tr=(st&&st.trace)||[]
+    for(var i=0;i<tr.length;i++){ if(tr[i].pool) $('#msg').textContent='环控纠错跑过 '+tr[i].round+' 轮' }
+  }).catch(function(){})
+
+})()</script></body></html>

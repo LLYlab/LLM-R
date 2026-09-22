@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "about": "LLM-R 全局工具注册表。可复用实现全局注册，SWF / AMZ 只声明选用（设计原则 6）。校验器用它判定工具是否存在与属于哪一类。",
+  "classes": {
+    "read": "只读地看：不改变任何东西",
+    "write": "改文件",
+    "exec": "起进程 / 执行代码——会话 sandbox 不是 per-AMZ 的，这类工具会让 CSP 的保证变弱",
+    "net": "出网",
+    "artifact": "产出成品文件（docx / xlsx / pptx / pdf）",
+    "ui": "与用户交互：选文件、剪贴板、打开路径、通知"
+  },
+  "surfaces": {
+    "amz": "AMZ 能声明使用",
+    "ui": "SWF 自带的界面通过 llmr.* 通道调用",
+    "both": "两边都能"
+  },
+  "tools": [
+    { "name": "read_file", "class": "read", "surface": "both", "about": "读文本文件" },
+    { "name": "list_dir", "class": "read", "surface": "both", "about": "列目录" },
+    { "name": "glob", "class": "read", "surface": "both", "about": "按通配符找文件" },
+    { "name": "grep", "class": "read", "surface": "both", "about": "按正则搜内容" },
+    { "name": "read_image", "class": "read", "surface": "amz", "about": "看图" },
+    { "name": "read", "class": "read", "surface": "amz", "about": "通用读取" },
+    { "name": "dlt_doc_read", "class": "read", "surface": "amz", "about": "读 PDF / Word / Excel / CSV" },
+    { "name": "dlt_env", "class": "read", "surface": "amz", "about": "看本机工具链环境表" },
+
+    { "name": "write_file", "class": "write", "surface": "both", "about": "写文本文件" },
+    { "name": "edit_file", "class": "write", "surface": "both", "about": "按片段改文件" },
+    { "name": "mkdir", "class": "write", "surface": "both", "about": "建目录" },
+    { "name": "move_path", "class": "write", "surface": "both", "about": "移动 / 改名" },
+    { "name": "delete_path", "class": "write", "surface": "both", "about": "删除" },
+    { "name": "write", "class": "write", "surface": "amz", "about": "通用写入" },
+    { "name": "edit", "class": "write", "surface": "amz", "about": "通用编辑" },
+    { "name": "dlt_doc_write", "class": "write", "surface": "amz", "about": "改 PDF / Word / Excel / CSV" },
+
+    { "name": "run_shell", "class": "exec", "surface": "amz", "about": "跑一条 shell 命令" },
+    { "name": "run_code", "class": "exec", "surface": "amz", "about": "跑一段代码" },
+    { "name": "pwsh", "class": "exec", "surface": "amz", "about": "Windows PowerShell" },
+    { "name": "bash", "class": "exec", "surface": "amz", "about": "bash" },
+    { "name": "cmd", "class": "exec", "surface": "amz", "about": "cmd.exe" },
+    { "name": "dlt_run", "class": "exec", "surface": "amz", "about": "在注册过的运行时里执行" },
+    { "name": "dlt_build", "class": "exec", "surface": "amz", "about": "编译工程" },
+
+    { "name": "web_search", "class": "net", "surface": "amz", "about": "联网搜索" },
+    { "name": "web_fetch", "class": "net", "surface": "amz", "about": "抓取网页" },
+    { "name": "http_request", "class": "net", "surface": "amz", "about": "发一个 HTTP 请求" },
+
+    { "name": "docx_write", "class": "artifact", "surface": "amz", "about": "产出 .docx" },
+    { "name": "xlsx_write", "class": "artifact", "surface": "amz", "about": "产出 .xlsx" },
+    { "name": "pptx_write", "class": "artifact", "surface": "amz", "about": "产出 .pptx" },
+    { "name": "pdf_write", "class": "artifact", "surface": "amz", "about": "产出 .pdf" },
+    { "name": "dlt_doc_convert", "class": "artifact", "surface": "amz", "about": "文档格式转换 / 页面栅格化" },
+
+    { "name": "pick_file", "class": "ui", "surface": "both", "about": "弹系统的「打开文件」对话框，拿回路径" },
+    { "name": "pick_folder", "class": "ui", "surface": "both", "about": "弹系统的「选文件夹」对话框" },
+    { "name": "pick_save", "class": "ui", "surface": "both", "about": "弹系统的「另存为」对话框" },
+    { "name": "open_path", "class": "ui", "surface": "both", "about": "用系统默认程序打开" },
+    { "name": "reveal_path", "class": "ui", "surface": "both", "about": "在资源管理器里定位" },
+    { "name": "clipboard_read", "class": "ui", "surface": "both", "about": "读剪贴板" },
+    { "name": "clipboard_write", "class": "ui", "surface": "both", "about": "写剪贴板" },
+    { "name": "ask_user", "class": "ui", "surface": "amz", "about": "停下来问一句（signal.ask 的显式写法）" },
+    { "name": "notify", "class": "ui", "surface": "both", "about": "给一条系统通知 / toast" }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "name": "llm-r",
+  "version": "0.2.0",
+  "description": "LLYlab Light Model Runtime —— 别人在给 Agent 加自主性，LLM-R 在减。",
+  "keywords": [
+    "agent",
+    "workflow",
+    "llm",
+    "orchestration",
+    "json-schema",
+    "runtime"
+  ],
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "web": "node tools/llmr/server.cjs",
+    "validate": "node tools/validator/validate.cjs",
+    "test": "node tools/llmr/examples.selftest.cjs && node tools/llmr/executor.selftest.cjs && node tools/llmr/selftest.cjs && node tools/llmr/exprtest.cjs && node tools/validator/selftest.cjs && node tools/validator/auditcodes.cjs",
+    "fuzz": "node tools/llmr/fuzztest.cjs && node tools/validator/schemfuzz.cjs",
+    "ui": "node tools/llmr/uidemo.cjs"
+  }
+}

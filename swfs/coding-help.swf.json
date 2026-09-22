@@ -173,7 +173,8 @@
           "answer"
         ],
         "maxRounds": 1,
-        "note": "提问 → 回答。只读，不改文件。"
+        "note": "提问 → 回答。只读，不改文件。",
+        "after": "handoff"
       },
       {
         "id": "selection",
@@ -182,7 +183,8 @@
           "explain"
         ],
         "maxRounds": 1,
-        "note": "选中 → 解释。"
+        "note": "选中 → 解释。",
+        "after": "handoff"
       },
       {
         "id": "typing",
@@ -191,7 +193,8 @@
           "suggest"
         ],
         "maxRounds": 1,
-        "note": "在写 → 给下一条建议。"
+        "note": "在写 → 给下一条建议。",
+        "after": "handoff"
       },
       {
         "id": "lookback",
@@ -200,7 +203,8 @@
           "revisit"
         ],
         "maxRounds": 1,
-        "note": "回看 Goal —— 防跑偏的锚。"
+        "note": "回看 Goal —— 防跑偏的锚。",
+        "after": "handoff"
       }
     ],
     "ui": {

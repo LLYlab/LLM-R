@@ -56,22 +56,6 @@
         }
       },
       {
-        "id": "route",
-        "kind": "ttc",
-        "prompt": "认定这次要做什么，报出 task：outline（改大纲）/ new_chapter（写新章）/ revise（改已有章）。\n直接照用户说的认定，不要自作主张换任务。",
-        "tools": [],
-        "output": {
-          "body": "text",
-          "signal": {
-            "fields": {
-              "task": "text",
-              "working": "bool"
-            },
-            "encoder": "self"
-          }
-        }
-      },
-      {
         "id": "gen_outline",
         "kind": "exp",
         "prompt": "写/改大纲与设定。三部分：世界观与规则、人物表（动机/关系/弧光）、分章大纲（每章一句话）。\n**人物表和大纲要和已有章节对得上**——冲突了就以已有正文为准并指出来。",
@@ -92,13 +76,13 @@
       {
         "id": "dispatch",
         "kind": "ttc",
-        "prompt": "章级任务的转接：把 recall 读到的上下文与用户诉求整理好交下去。只整理，不创作。",
+        "prompt": "章级任务的转接：把 recall 读到的上下文按用户诉求整理好，交给下一棒。只整理，不创作。",
         "tools": [],
         "output": {
-          "body": "text",
+          "body": "free",
           "signal": {
             "fields": {
-              "task": "text"
+              "working": "bool"
             },
             "encoder": "self"
           }
@@ -189,23 +173,16 @@
     "order": [
       {
         "from": "recall",
-        "to": "route",
-        "when": "run.status == 'ok'",
-        "level": 1,
-        "else": "abort"
-      },
-      {
-        "from": "route",
         "to": "gen_outline",
-        "when": "signal.task == 'outline'",
-        "level": 2,
+        "when": "args.task == 'outline'",
+        "level": 1,
         "else": "dispatch"
       },
       {
         "from": "dispatch",
         "to": "gen_chapter",
-        "when": "signal.task == 'new_chapter'",
-        "level": 2,
+        "when": "args.task == 'new_chapter'",
+        "level": 1,
         "else": "gen_revise"
       },
       {
@@ -247,13 +224,13 @@
           "id": "new_chapter",
           "title": "新章",
           "entry": "ui/new-chapter.html",
-          "when": "signal.task == 'new_chapter'"
+          "when": "args.task == 'new_chapter'"
         },
         {
           "id": "edit_render",
           "title": "编辑渲染",
           "entry": "ui/edit-render.html",
-          "when": "signal.task == 'revise'"
+          "when": "args.task == 'revise'"
         },
         {
           "id": "manual",

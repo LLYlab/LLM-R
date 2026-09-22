@@ -91,11 +91,13 @@ async function executeSwf (swf, opts = {}) {
       on: String(z.on === undefined ? '' : z.on),
       run: asArray(z.run),
       resume: typeof z.resume === 'string' && z.resume !== '' ? z.resume : null,
+      after: typeof z.after === 'string' && z.after !== '' ? z.after : null,
       maxRounds: Number.isFinite(mr) && mr > 0 ? Math.floor(mr) : 3,
       ast,
     }
   }).filter((z) => z.id !== '' && z.ast !== null && z.run.length > 0)
   const rounds = new Map()
+  const seenNodes = new Set()   // 本run 跑过哪些节点 —— 池的 after 靠它
   const onStep = typeof opts.onStep === 'function' ? opts.onStep : null
 
   const g = buildGraph(swf, opts.amzLibrary)
@@ -185,6 +187,7 @@ async function executeSwf (swf, opts = {}) {
       }
     }
 
+    seenNodes.add(cur)
     trace.push(step)
     if (onStep) onStep(step)
 
@@ -194,7 +197,10 @@ async function executeSwf (swf, opts = {}) {
     if (zones.length) {
       const HARD_CAP = zones.reduce((n, z) => n + z.maxRounds, 0) + 1
       for (let guard = 0; guard < HARD_CAP; guard++) {
-        const z = zones.find((zz) => (rounds.get(zz.id) || 0) < zz.maxRounds && safeEval(zz.on, env) === true)
+        const z = zones.find((zz) => (rounds.get(zz.id) || 0) < zz.maxRounds &&
+          // after：那个节点跑过了才武装。"跑到哪了"是宿主知道的事实，不该问模型
+          (zz.after === null || seenNodes.has(zz.after)) &&
+          safeEval(zz.on, env) === true)
         if (!z) break
         rounds.set(z.id, (rounds.get(z.id) || 0) + 1)
 
@@ -246,6 +252,7 @@ async function executeSwf (swf, opts = {}) {
               poolRounds: roundSummary(rounds),
             }
           }
+          seenNodes.add(pid)
           trace.push(pstep)
           if (onStep) onStep(pstep)
           if (poutput !== undefined) lastPoolOutput = poutput
