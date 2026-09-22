@@ -163,6 +163,7 @@ const AUDIT = `
   }
   var pre = document.createElement('pre')
   pre.id = '__ux'
+  pre.style.display = 'none'
   pre.textContent = btoa(unescape(encodeURIComponent(JSON.stringify(R))))
   document.body.appendChild(pre)
 })()
